@@ -5,7 +5,7 @@ This repository contains my personal add-ons for Home Assistant. Feel free to in
 
 Navigate in your Home Assistant frontend to **Configuration** -> **Add-ons, Backups & Supervisor** -> **Add-ons** -> **Add-on Store** and add this URL as an additional repository:
 ```txt
-https://github.com/MattFryer/Hassio-Addons
+https://github.com/K4rl1Hub/Hassio-Addons
 ```
 **NOTE**: For versions of Home Assistant prior to 2021.12 navigate to **Supervisor** -> **Add-ons** -> **Add-on Store** instead.
 
