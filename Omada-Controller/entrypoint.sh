@@ -82,16 +82,26 @@ do
   # OWNER="$(stat -c '%u' /opt/tplink/EAPController/${DIR})"
   # GROUP="$(stat -c '%g' /opt/tplink/EAPController/${DIR})"
 
-
+    # check to see if the directory is there; create it if it is missing
+  if [ ! -d "/data/omada_controller/${DIR}" ]
+  then
+    echo "INFO: ${DIR} directory missing; creating '/data/omada_controller/${DIR}'"
+    mkdir /data/omada_controller/${DIR}
+    chown 508:508 /data/omada_controller/${DIR}
+    echo "done"
+  fi
+  
   OWNER="$(stat -c '%u' /data/omada_controller/${DIR})"
   GROUP="$(stat -c '%g' /data/omada_controller/${DIR})"
 
   if [ "${OWNER}" != "508" ] || [ "${GROUP}" != "508" ]
   then
     # notify user that uid:gid are not correct and fix them
-    echo "WARNING: owner or group (${OWNER}:${GROUP}) not set correctly on '/opt/tplink/EAPController/${DIR}'"
+    # echo "WARNING: owner or group (${OWNER}:${GROUP}) not set correctly on '/opt/tplink/EAPController/${DIR}'"
+    echo "WARNING: owner or group (${OWNER}:${GROUP}) not set correctly on '/data/omada_controller/${DIR}'"
     echo "INFO: setting correct permissions"
-    chown -R 508:508 "/opt/tplink/EAPController/${DIR}"
+    # chown -R 508:508 "/opt/tplink/EAPController/${DIR}"
+    chown -R 508:508 "/data/omada_controller/${DIR}"
   fi
 done
 
