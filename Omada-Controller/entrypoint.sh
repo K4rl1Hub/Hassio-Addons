@@ -6,14 +6,96 @@ set -e
 export TZ
 TZ="${TZ:-Etc/UTC}"
 SMALL_FILES="${SMALL_FILES:-false}"
+
+# PORTS CONFIGURATION
 MANAGE_HTTP_PORT="${MANAGE_HTTP_PORT:-8088}"
 MANAGE_HTTPS_PORT="${MANAGE_HTTPS_PORT:-8043}"
 PORTAL_HTTP_PORT="${PORTAL_HTTP_PORT:-8088}"
 PORTAL_HTTPS_PORT="${PORTAL_HTTPS_PORT:-8843}"
+PORT_ADOPT_V1="${PORT_ADOPT_V1:-29812}"
+PORT_APP_DISCOVERY="${PORT_APP_DISCOVERY:-27001}"
+PORT_UPGRADE_V1="${PORT_UPGRADE_V1:-29813}"
+PORT_MANAGER_V1="${PORT_MANAGER_V1:-29811}"
+PORT_MANAGER_V2="${PORT_MANAGER_V2:-29814}"
+PORT_DISCOVERY="${PORT_DISCOVERY:-29810}"
+# END PORTS CONFIGURATION
+
 SHOW_SERVER_LOGS="${SHOW_SERVER_LOGS:-true}"
 SHOW_MONGODB_LOGS="${SHOW_MONGODB_LOGS:-false}"
 SSL_CERT_NAME="${SSL_CERT_NAME:-tls.crt}"
 SSL_KEY_NAME="${SSL_KEY_NAME:-tls.key}"
+TLS_1_11_ENABLED="${TLS_1_11_ENABLED:-false}"
+PUID="${PUID:-508}"
+PGID="${PGID:-508}"
+SKIP_USERLAND_KERNEL_CHECK="${SKIP_USERLAND_KERNEL_CHECK:-false}"
+
+# validate user/group exist with correct UID/GID
+echo "INFO: Validating user/group (omada:omada) exists with correct UID/GID (${PUID}:${PGID})"
+
+# check to see if group exists; if not, create it
+if grep -q -E "^omada:" /etc/group > /dev/null 2>&1
+then
+  # exiting group found; also make sure the omada user matches the GID
+  echo "INFO: Group (omada) exists; skipping creation"
+  EXISTING_GID="$(id -g omada)"
+  if [ "${EXISTING_GID}" != "${PGID}" ]
+  then
+    echo "ERROR: Group (omada) has an unexpected GID; was expecting '${PGID}' but found '${EXISTING_GID}'!"
+    exit 1
+  fi
+else
+  # make sure the group doesn't already exist with a different name
+  if awk -F ':' '{print $3}' /etc/group | grep -q "^${PGID}$"
+  then
+    # group ID exists but has a different group name
+    EXISTING_GROUP="$(grep ":${PGID}:" /etc/group | awk -F ':' '{print $1}')"
+    echo "INFO: Group (omada) already exists with a different name; renaming '${EXISTING_GROUP}' to 'omada'"
+    groupmod -n omada "${EXISTING_GROUP}"
+  else
+    # create the group
+    echo "INFO: Group (omada) doesn't exist; creating"
+    groupadd -g "${PGID}" omada
+  fi
+fi
+
+# check to see if user exists; if not, create it
+if id -u omada > /dev/null 2>&1
+then
+  # exiting user found; also make sure the omada user matches the UID
+  echo "INFO: User (omada) exists; skipping creation"
+  EXISTING_UID="$(id -u omada)"
+  if [ "${EXISTING_UID}" != "${PUID}" ]
+  then
+    echo "ERROR: User (omada) has an unexpected UID; was expecting '${PUID}' but found '${EXISTING_UID}'!"
+    exit 1
+  fi
+else
+  # make sure the user doesn't already exist with a different name
+  if awk -F ':' '{print $3}' /etc/passwd | grep -q "^${PUID}$"
+  then
+    # user ID exists but has a different user name
+    EXISTING_USER="$(grep ":${PUID}:" /etc/passwd | awk -F ':' '{print $1}')"
+    echo "INFO: User (omada) already exists with a different name; renaming '${EXISTING_USER}' to 'omada'"
+    usermod -g "${PGID}" -d /opt/tplink/EAPController/data -l omada -s /bin/sh -c "" "${EXISTING_USER}"
+  else
+    # create the user
+    echo "INFO: User (omada) doesn't exist; creating"
+    useradd -u "${PUID}" -g "${PGID}" -d /opt/tplink/EAPController/data -s /bin/sh -c "" omada
+  fi
+fi
+
+# check if properties file exists; create it if it is missing
+DEFAULT_FILES="/opt/tplink/EAPController/properties.defaults/*"
+for FILE in ${DEFAULT_FILES}
+do
+  BASENAME=$(basename "${FILE}")
+  if [ ! -f "/opt/tplink/EAPController/properties/${BASENAME}" ]
+  then
+    echo "INFO: Properties file '${BASENAME}' missing, restoring default file..."
+    cp "${FILE}" "/opt/tplink/EAPController/properties/${BASENAME}"
+    chown omada:omada "/opt/tplink/EAPController/properties/${BASENAME}"
+  fi
+done
 
 # set default time zone and notify user of time zone
 echo "INFO: Time zone set to '${TZ}'"
@@ -77,33 +159,26 @@ then
 fi
 
 # make sure permissions are set appropriately on each directory
-for DIR in work logs
+for DIR in data logs properties
 do
-  # OWNER="$(stat -c '%u' /opt/tplink/EAPController/${DIR})"
-  # GROUP="$(stat -c '%g' /opt/tplink/EAPController/${DIR})"
+  OWNER="$(stat -c '%u' /opt/tplink/EAPController/${DIR})"
+  GROUP="$(stat -c '%g' /opt/tplink/EAPController/${DIR})"
 
-    # check to see if the directory is there; create it if it is missing
-  if [ ! -d "/data/omada_controller/${DIR}" ]
-  then
-    echo "INFO: ${DIR} directory missing; creating '/data/omada_controller/${DIR}'"
-    mkdir /data/omada_controller/${DIR}
-    chown 508:508 /data/omada_controller/${DIR}
-    echo "done"
-  fi
-  
-  OWNER="$(stat -c '%u' /data/omada_controller/${DIR})"
-  GROUP="$(stat -c '%g' /data/omada_controller/${DIR})"
-
-  if [ "${OWNER}" != "508" ] || [ "${GROUP}" != "508" ]
+  if [ "${OWNER}" != "${PUID}" ] || [ "${GROUP}" != "${PGID}" ]
   then
     # notify user that uid:gid are not correct and fix them
-    # echo "WARNING: owner or group (${OWNER}:${GROUP}) not set correctly on '/opt/tplink/EAPController/${DIR}'"
-    echo "WARNING: owner or group (${OWNER}:${GROUP}) not set correctly on '/data/omada_controller/${DIR}'"
-    echo "INFO: setting correct permissions"
-    # chown -R 508:508 "/opt/tplink/EAPController/${DIR}"
-    chown -R 508:508 "/data/omada_controller/${DIR}"
+    echo "WARN: Ownership not set correctly on '/opt/tplink/EAPController/${DIR}'; setting correct ownership (omada:omada)"
+    chown -R omada:omada "/opt/tplink/EAPController/${DIR}"
   fi
 done
+
+# validate permissions on /tmp
+TMP_PERMISSIONS="$(stat -c '%a' /tmp)"
+if [ "${TMP_PERMISSIONS}" != "1777" ]
+then
+  echo "WARN: Permissions are not set correctly on '/tmp' (${TMP_PERMISSIONS}); setting correct permissions (1777)"
+  chmod -v 1777 /tmp
+fi
 
 # check to see if there is a data & db directory; create it if it is missing
 if [ ! -d "/data/omada_controller/data" ]
