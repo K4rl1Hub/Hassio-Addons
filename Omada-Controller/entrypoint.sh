@@ -79,8 +79,12 @@ fi
 # make sure permissions are set appropriately on each directory
 for DIR in work logs
 do
-  OWNER="$(stat -c '%u' /opt/tplink/EAPController/${DIR})"
-  GROUP="$(stat -c '%g' /opt/tplink/EAPController/${DIR})"
+  # OWNER="$(stat -c '%u' /opt/tplink/EAPController/${DIR})"
+  # GROUP="$(stat -c '%g' /opt/tplink/EAPController/${DIR})"
+
+
+  OWNER="$(stat -c '%u' /data/omada_controller/${DIR})"
+  GROUP="$(stat -c '%g' /data/omada_controller/${DIR})"
 
   if [ "${OWNER}" != "508" ] || [ "${GROUP}" != "508" ]
   then
