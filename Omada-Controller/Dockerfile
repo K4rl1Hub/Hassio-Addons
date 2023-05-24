@@ -9,8 +9,8 @@ RUN chmod +x /*.sh
 # Copy configuration properties
 COPY omada.properties log4j2.properties /opt/tplink/EAPController/properties/
 
-RUN /install.sh &&\
-    /log4j_patch.sh
+RUN /install.sh
+RUN /log4j_patch.sh
 
 EXPOSE 8043/tcp 8088/tcp 27001/udp 27002/tcp 29810/tcp 29810/udp 29811/tcp 29811/udp 29812/tcp 29812/udp 29813/tcp 29813/udp
 
