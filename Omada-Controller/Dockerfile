@@ -4,6 +4,12 @@ HEALTHCHECK CMD wget --quiet --tries=1 --no-check-certificate http://127.0.0.1:8
 
 COPY install.sh healthcheck.sh entrypoint.sh log4j_patch.sh /
 
+# valid values: amd64 (default) | arm64 | armv7l
+ARG ARCH=arm64
+
+# install version (major.minor only); OMADA_URL set in install.sh
+ARG INSTALL_VER="5.9"
+
 RUN chmod +x /*.sh
 
 # Copy configuration properties
