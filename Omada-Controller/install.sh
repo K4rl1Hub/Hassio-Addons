@@ -4,9 +4,26 @@ set -e
 
 OMADA_DIR="/data/omada_controller"
 ARCH="${ARCH:-}"
+INSTALL_VER="${INSTALL_VER:-}"
 OMADA_VER="${OMADA_VER:-}"
 OMADA_TAR="${OMADA_TAR:-}"
 OMADA_URL="${OMADA_URL:-}"
+
+# get URL to package based on major.minor version; for information on this url API, see https://github.com/mbentley/docker-omada-controller-url
+OMADA_URL="$(wget -q -O - "https://omada-controller-url.mbentley.net/hooks/omada_ver_to_url?omada-ver=${INSTALL_VER}")"
+
+# make sure OMADA_URL isn't empty
+if [ -z "${OMADA_URL}" ]
+then
+  echo "ERROR: ${OMADA_URL} did not return a valid URL"
+  exit 1
+fi
+
+# extract required data from the OMADA_URL
+OMADA_TAR="$(echo "${OMADA_URL}" | awk -F '/' '{print $NF}')"
+OMADA_VER="$(echo "${OMADA_TAR}" | awk -F '_v' '{print $2}' | awk -F '_' '{print $1}')"
+OMADA_MAJOR_VER="${OMADA_VER%.*.*}"
+OMADA_MAJOR_MINOR_VER="${OMADA_VER%.*}"
 
 die() { echo -e "$@" 2>&1; exit 1; }
 
