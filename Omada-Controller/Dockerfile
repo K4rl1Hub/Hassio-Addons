@@ -1,13 +1,16 @@
-ARG BASE=mbentley/omada-controller:latest
+ARG BASE=mbentley/omada-controller:5.9
 FROM ${BASE}
 HEALTHCHECK CMD wget --quiet --tries=1 --no-check-certificate http://127.0.0.1:8088 || exit 1
 
-COPY install.sh healthcheck.sh entrypoint.sh /
+COPY install.sh healthcheck.sh entrypoint.sh log4j_patch.sh /
 
 RUN chmod +x /*.sh
 
 # Copy configuration properties
 COPY omada.properties log4j2.properties /opt/tplink/EAPController/properties/
+
+RUN /install.sh &&\
+    /log4j_patch.sh
 
 EXPOSE 8043/tcp 8088/tcp 27001/udp 27002/tcp 29810/tcp 29810/udp 29811/tcp 29811/udp 29812/tcp 29812/udp 29813/tcp 29813/udp
 
