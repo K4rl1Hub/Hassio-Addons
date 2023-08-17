@@ -228,6 +228,7 @@ echo "INFO: Starting Omada Controller as user omada"
 if [ "${SHOW_SERVER_LOGS}" = "true" ]
 then
   touch /opt/tplink/EAPController/logs/server.log
+  chown 508:508 /opt/tplink/EAPController/logs/server.log
   gosu omada tail -F -n 0 /opt/tplink/EAPController/logs/server.log &
 fi
 
@@ -235,6 +236,7 @@ fi
 if [ "${SHOW_MONGODB_LOGS}" = "true" ]
 then
   touch /opt/tplink/EAPController/logs/mongod.log
+  chown 508:508 /opt/tplink/EAPController/logs/mongod.log
   gosu omada tail -F -n 0 /opt/tplink/EAPController/logs/mongod.log &
 fi
 
